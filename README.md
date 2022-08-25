@@ -31,25 +31,25 @@ ObjectMCClass.export(".minecraft/saves/world/datapacks")
 ```
 
 ## Support
-ObjectMC v0.1 supports:
+ObjectMC v0.1 supports
 - Python 3
 - - Python types
 - - - str
 - - - int
-- - Python built-in functions:
+- - Python built-in functions
 - - - print
 - - - len
 - - - min
 - - - max
 - - - exit
-- - Python operations:
+- - Python operations
 - - - Add
 - - - Subtract
 - - - Multiply
 - - - Divide
 - - - Modulo
 - - - Power
-- - Python constructions:
+- - Python constructions
 - - - Nothing yet :(
 - Minecraft 1.16+
 - - Minecraft API
