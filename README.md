@@ -41,6 +41,7 @@ ObjectMC v0.1 supports:
 - - len
 - - min
 - - max
+- - exit
 - Python operations:
 - - Add
 - - Subtract
@@ -49,4 +50,6 @@ ObjectMC v0.1 supports:
 - - Modulo
 - - Power
 - Python constructions:
+- - Nothing yet :(
+- Minecraft API
 - - Nothing yet :(
