@@ -1,7 +1,8 @@
-from inspect import Signature, Parameter, isfunction
+from inspect import Signature, Parameter, signature, isfunction
 from os.path import join, exists
 from shutil import rmtree
 from dis import Bytecode
+from re import fullmatch
 from os import makedirs
 from json import dumps
 
@@ -10,13 +11,13 @@ __all__ = ["ObjectMC", "load", "tick", "mcfunction", "ignore"]
 class ObjectMC:
     class Library:
         def len(self):
-            return self.argmap(Signature([Parameter("obj", Parameter.POSITIONAL_OR_KEYWORD)])) + \
-                   [f"data modify storage {self.id}:data Temporary append value " + "{Type:\"Integer\"}",
+            return self.argmap(Signature([Parameter("obj", Parameter.POSITIONAL_OR_KEYWORD)]), "len") + \
+                   [f"data modify storage {self.id}:data Temporary append value " + "{Type:\"int\"}",
                     f"execute store result storage {self.id}:data Temporary[-1].Value int 1 run data get storage {self.id}:data Variables.obj.Value"] + \
                    self.store_result()
         
         def min(self):
-            return self.argmap(Signature([Parameter("num1", Parameter.POSITIONAL_OR_KEYWORD), Parameter("num2", Parameter.POSITIONAL_OR_KEYWORD)])) + \
+            return self.argmap(Signature([Parameter("num1", Parameter.POSITIONAL_OR_KEYWORD), Parameter("num2", Parameter.POSITIONAL_OR_KEYWORD)]), "min") + \
                    [f"data modify storage {self.id}:data Temporary append from storage {self.id}:data Variables.num1",
                     f"data modify storage {self.id}:data Temporary append from storage {self.id}:data Variables.num2"] + \
                    self.load_math() + \
@@ -25,7 +26,7 @@ class ObjectMC:
                    self.store_result()
         
         def max(self):
-            return self.argmap(Signature([Parameter("num1", Parameter.POSITIONAL_OR_KEYWORD), Parameter("num2", Parameter.POSITIONAL_OR_KEYWORD)])) + \
+            return self.argmap(Signature([Parameter("num1", Parameter.POSITIONAL_OR_KEYWORD), Parameter("num2", Parameter.POSITIONAL_OR_KEYWORD)]), "max") + \
                    [f"data modify storage {self.id}:data Temporary append from storage {self.id}:data Variables.num1",
                     f"data modify storage {self.id}:data Temporary append from storage {self.id}:data Variables.num2"] + \
                    self.load_math() + \
@@ -34,10 +35,11 @@ class ObjectMC:
                    self.store_result()
         
         def exit(self):
-            return [f"scoreboard players set exited {self.id}_data 1"]
+            return self.argmap(Signature(), "exit") + \
+                   [f"scoreboard players set exited {self.id}_data 1"]
         
         def print(self):
-            commands = self.argmap(Signature([Parameter("objs", Parameter.VAR_POSITIONAL), Parameter("sep", Parameter.KEYWORD_ONLY, default=" ")])) + \
+            commands = self.argmap(Signature([Parameter("objs", Parameter.VAR_POSITIONAL), Parameter("sep", Parameter.KEYWORD_ONLY, default=" ")]), "print") + \
                        [f"data modify storage {self.id}:data Args set value []",
                         f"data modify storage {self.id}:data Kwargs set value " + "{}",
                         f"data modify storage {self.id}:data Args append from storage {self.id}:data Variables.objs",
@@ -47,6 +49,32 @@ class ObjectMC:
                 commands.append(f"execute if data storage {self.id}:data Result" + "{Value:" + str(argc) + "} run tellraw @a [" + (",{\"storage\":\"" + self.id + ":data\",\"nbt\":\"Variables.sep.Value\"},").join(["{\"storage\":\"" + self.id + ":data\",\"nbt\":\"Variables.objs.Value[" + str(i) + "].Value\"}" for i in range(argc)]) + "]")
             commands += self.load_none() + self.store_result()
             return commands
+        
+        def bool(self):
+            return self.argmap(Signature([Parameter("obj", Parameter.POSITIONAL_OR_KEYWORD, default=False)]), "bool") + \
+                   self.load("obj") + \
+                   [f"scoreboard players set 2 {self.id}_data 0",
+                    f"data modify storage {self.id}:data Operation set from storage {self.id}:data Temporary[-1]",
+                    f"execute if score 2 {self.id}_data matches 0 run store result score 1 {self.id}_data run data modify storage {self.id}:data Operation set value " + "{\"Type\":\"NoneType\",\"Value\":\"None\"}",
+                    f"execute if score 2 {self.id}_data matches 0 if score 1 {self.id}_data matches 0 run " + self.load_boolean(False)[0],
+                    f"execute if score 2 {self.id}_data matches 0 if score 1 {self.id}_data matches 0 run scoreboard players set 2 {self.id}_data 1",
+                    f"data modify storage {self.id}:data Operation set from storage {self.id}:data Temporary[-1]",
+                    f"execute if score 2 {self.id}_data matches 0 store result score 1 {self.id}_data run data modify storage {self.id}:data Operation set value " + "{\"Type\":\"bool\",\"Value\":\"False\"}",
+                    f"execute if score 2 {self.id}_data matches 0 if score 1 {self.id}_data matches 0 run " + self.load_boolean(False)[0],
+                    f"execute if score 2 {self.id}_data matches 0 if score 1 {self.id}_data matches 0 run scoreboard players set 2 {self.id}_data 1",
+                    f"data modify storage {self.id}:data Operation set from storage {self.id}:data Temporary[-1]",
+                    f"execute if score 2 {self.id}_data matches 0 store result score 1 {self.id}_data run data modify storage {self.id}:data Operation set value " + "{\"Type\":\"int\",\"Value\":0}",
+                    f"execute if score 2 {self.id}_data matches 0 if score 1 {self.id}_data matches 0 run " + self.load_boolean(False)[0],
+                    f"execute if score 2 {self.id}_data matches 0 if score 1 {self.id}_data matches 0 run scoreboard players set 2 {self.id}_data 1",
+                    f"execute if score 2 {self.id}_data matches 0 run data modify storage {self.id}:data Args set value []",
+                    f"execute if score 2 {self.id}_data matches 0 run data modify storage {self.id}:data Kwargs set value " + "{}",
+                    f"execute if score 2 {self.id}_data matches 0 run data modify storage {self.id}:data Args append from storage {self.id}:data Temporary[-1]",
+                    f"execute if score 2 {self.id}_data matches 0 run function {self.id}:core/len",
+                    f"execute if score 2 {self.id}_data matches 0 if data storage {self.id}:data Result" + "{Value:0} run " + self.load_boolean(False)[0],
+                    f"execute if score 2 {self.id}_data matches 0 if data storage {self.id}:data Result" + "{Value:0} run " + f"scoreboard players set 2 {self.id}_data 1",
+                    f"data remove storage {self.id}:data Result",
+                    f"execute if score 2 {self.id}_data matches 0 run " + self.load_boolean(True)[0],
+                    f"data remove storage {self.id}:data Temporary[-2]"]
     
     class Internal:
         def pow(self):
@@ -54,25 +82,31 @@ class ObjectMC:
                     f"scoreboard players remove 2 {self.id}_data 1",
                     f"execute if score 2 {self.id}_data matches 2.. run function {self.id}:internal/pow"]
     
-    def __init__(self, name=None, id=None):
-        self.name = name
+    def __init__(self, id=None, name=None, description=None):
         self.id = id
+        self.name = name
+        self.description = description
         self.functions = None
-        self.target_functions = None
     
-    def argmap(self, sign):
+    def argmap(self, sign, funcname):
         commands = []
-        for name, param in sign.parameters.items():
+        for name, param in reversed(sign.parameters.items()):
             if param.kind == param.POSITIONAL_ONLY or param.kind == param.POSITIONAL_OR_KEYWORD:
                 if param.default is not param.empty:
-                    commands += self.load_value(param.default) + \
-                                self.store(name)
-                commands += [f"data modify storage {self.id}:data Variables.{name} set from storage {self.id}:data Args[-1]",
-                             f"data remove storage {self.id}:data Args[-1]"]
+                    commands += map(lambda command: f"execute unless data storage {self.id}:data Args[-1] run " + command, self.load_value(param.default) + \
+                                                                                                                           self.store(name))
+                else:
+                    commands += [f"execute unless data storage {self.id}:data Args[-1] run " + "tellraw @a [{\"text\":\"TypeError: " + funcname + "() missing required argument '" + name +"'\",\"color\":\"red\"}]",
+                                 f"execute unless data storage {self.id}:data Args[-1] run function {self.id}:core/exit"]
+                commands += [f"execute if data storage {self.id}:data Args[-1] run data modify storage {self.id}:data Variables.{name} set from storage {self.id}:data Args[-1]",
+                             f"execute if data storage {self.id}:data Args[-1] run data remove storage {self.id}:data Args[-1]"]
             elif param.kind == param.KEYWORD_ONLY:
                 if param.default is not param.empty:
-                    commands += self.load_value(param.default) + \
-                                self.store(name)
+                    commands += map(lambda command: f"execute unless data storage {self.id}:data Kwargs.{name} run " + command, self.load_value(param.default) + \
+                                                                                                                           self.store(name))
+                else:
+                    commands += [f"execute unless data storage {self.id}:data Kwargs.{name} run " + "tellraw @a [{\"text\":\"TypeError: " + funcname + "() missing required argument '" + name +"'\",\"color\":\"red\"}]",
+                                 f"execute unless data storage {self.id}:data Kwargs.{name} run function {self.id}:core/exit"]
                 commands += [f"data modify storage {self.id}:data Variables.{name} set from storage {self.id}:data Kwargs.{name}",
                              f"data remove storage {self.id}:data Kwargs.{name}"]
             elif param.kind == param.VAR_POSITIONAL:
@@ -89,10 +123,13 @@ class ObjectMC:
                 f"scoreboard objectives add {self.id}_data dummy"]
     
     def load_string(self, string):
-        return [f"data modify storage {self.id}:data Temporary append value " + "{Type:\"String\",Value:" + dumps(string) + "}"]
+        return [f"data modify storage {self.id}:data Temporary append value " + "{Type:\"str\",Value:" + dumps(string) + "}"]
     
     def load_integer(self, integer):
-        return [f"data modify storage {self.id}:data Temporary append value " + "{Type:\"Integer\",Value:" + dumps(integer) + "}"]
+        return [f"data modify storage {self.id}:data Temporary append value " + "{Type:\"int\",Value:" + dumps(integer) + "}"]
+    
+    def load_boolean(self, boolean):
+        return [f"data modify storage {self.id}:data Temporary append value " + "{\"Type\":\"bool\",\"Value\":\"" + str(boolean) + "\"}"]
     
     def load_none(self):
         return [f"data modify storage {self.id}:data Temporary append value " + "{Type:\"NoneType\",Value:\"None\"}"]
@@ -102,10 +139,15 @@ class ObjectMC:
             return self.load_string(value)
         elif type(value) == int:
             return self.load_integer(value)
+        elif type(value) == bool:
+            return self.load_boolean(value)
         elif value is None:
             return self.load_none()
         else:
             raise ValueError(f"ObjectMC doesn't support {type(value).__name__} type")
+    
+    def load_function(self, name, kind):
+        return [f"data modify storage {self.id}:data Temporary append value " + "{Type:\"Function\",Value:" + dumps(name) + ",Kind:" + dumps(kind) + "}"]
     
     def pop_temp(self):
         return [f"data remove storage {self.id}:data Temporary[-1]"]
@@ -118,13 +160,35 @@ class ObjectMC:
                 f"execute unless data storage {self.id}:data Variables.{name} run function {self.id}:core/exit",
                 f"data modify storage {self.id}:data Temporary append from storage {self.id}:data Variables.{name}"]
     
+    def invoke(self):
+        commands = []
+        commands += [f"data modify storage {self.id}:data Operation set from storage {self.id}:data Temporary[-1]",
+                     f"execute store success score 1 {self.id}_data run data modify storage {self.id}:data Operation.Type set value \"Function\"",
+                     f"execute if score 1 {self.id}_data matches 1 run " + "tellraw @a [{\"text\":\"TypeError: object '\",\"color\":\"red\"},{\"storage\":\"" + self.id + ":data\",\"nbt\":\"Temporary[-1].Type\"},{\"text\":\"' is not callable\",\"color\":\"red\"}]",
+                     f"execute if score 1 {self.id}_data matches 1 run " + f"function {self.id}:core/exit",
+                     f"scoreboard players set 2 {self.id}_data 1"]
+        for function in self.functions["core"]:
+            commands += [f"execute if score 2 {self.id}_data matches 1 run data modify storage {self.id}:data Operation set from storage {self.id}:data Temporary[-1]",
+                         f"execute if score 2 {self.id}_data matches 1 store success score 1 {self.id}_data run data modify storage {self.id}:data Operation.Value set value {dumps(function)}",
+                         f"execute if score 2 {self.id}_data matches 1 store success score 3 {self.id}_data run data modify storage {self.id}:data Operation.Kind set value \"core\"",
+                         f"execute if score 2 {self.id}_data matches 1 run scoreboard players operation 1 {self.id}_data += 3 {self.id}_data",
+                         f"execute if score 2 {self.id}_data matches 1 if score 1 {self.id}_data matches 0 run function {self.id}:core/{function}",
+                         f"execute if score 2 {self.id}_data matches 1 if score 1 {self.id}_data matches 0 run scoreboard players set 2 {self.id}_data 0"]
+        for function in self.functions["defined"]:
+            commands += [f"execute if score 2 {self.id}_data matches 1 run data modify storage {self.id}:data Operation set from storage {self.id}:data Temporary[-1]",
+                         f"execute if score 2 {self.id}_data matches 1 store success score 1 {self.id}_data run data modify storage {self.id}:data Operation.Value set value {dumps(function)}",
+                         f"execute if score 2 {self.id}_data matches 1 store success score 3 {self.id}_data run data modify storage {self.id}:data Operation.Kind set value \"defined\"",
+                         f"execute if score 2 {self.id}_data matches 1 run scoreboard players operation 1 {self.id}_data += 3 {self.id}_data",
+                         f"execute if score 2 {self.id}_data matches 1 if score 1 {self.id}_data matches 0 run function {self.id}:defined/{function}",
+                         f"execute if score 2 {self.id}_data matches 1 if score 1 {self.id}_data matches 0 run scoreboard players set 2 {self.id}_data 0"]
+        commands += [f"data modify storage {self.id}:data Temporary append from storage {self.id}:data Result"]
+        return commands
+    
     def call(self, argcount):
-        target_function = self.target_functions.pop()
         return [f"data modify storage {self.id}:data Args set value []"] + \
                ([f"data modify storage {self.id}:data Args prepend from storage {self.id}:data Temporary[-1]"] + \
                 self.pop_temp()) * argcount + \
-               [f"function {self.id}:{target_function}",
-                f"data modify storage {self.id}:data Temporary append from storage {self.id}:data Result"]
+               self.invoke()
     
     def kwcall(self, argcount):
         commands = [f"data modify storage {self.id}:data Args set value []",
@@ -133,11 +197,9 @@ class ObjectMC:
             commands += [f"data modify storage {self.id}:data Kwargs.{arg} set from storage {self.id}:data Temporary[-1]"] + \
                         self.pop_temp()
             argcount -= 1
-        target_function = self.target_functions.pop()
         commands += ([f"data modify storage {self.id}:data Args prepend from storage {self.id}:data Temporary[-1]"] + \
                      self.pop_temp()) * argcount + \
-                    [f"function {self.id}:{target_function}",
-                     f"data modify storage {self.id}:data Temporary append from storage {self.id}:data Result"]
+                    self.invoke()
         return commands
     
     def store_result(self):
@@ -154,7 +216,7 @@ class ObjectMC:
         return [f"scoreboard players operation 1 {self.id}_data {operation} 2 {self.id}_data"]
     
     def store_math(self):
-        return [f"data modify storage {self.id}:data Temporary append value " + "{\"Type\":\"Integer\"}",
+        return [f"data modify storage {self.id}:data Temporary append value " + "{\"Type\":\"int\"}",
                 f"execute store result storage {self.id}:data Temporary[-1].Value int 1 run scoreboard players get 1 {self.id}_data"]
     
     def add(self):
@@ -188,9 +250,53 @@ class ObjectMC:
                 f"function {self.id}:internal/pow"] + \
                self.store_math()
     
+    def compare_equals(self):
+        return [f"execute store success score 1 {self.id}_data run data modify storage {self.id}:data Temporary[-1] set from storage {self.id}:data Temporary[-2]"] + \
+               self.pop_temp() * 2 + \
+               [f"execute if score 1 {self.id}_data matches 1 run " + self.load_boolean(False)[0],
+                f"execute unless score 1 {self.id}_data matches 1 run " + self.load_boolean(True)[0]]
+    
+    def compare_not_equals(self):
+        return [f"execute store success score 1 {self.id}_data run data modify storage {self.id}:data Temporary[-1] set from storage {self.id}:data Temporary[-2]"] + \
+               self.pop_temp() * 2 + \
+               [f"execute if score 1 {self.id}_data matches 1 run " + self.load_boolean(True)[0],
+                f"execute unless score 1 {self.id}_data matches 1 run " + self.load_boolean(False)[0]]
+    
+    def compare_math(self, operation):
+        return [f"execute if score 1 {self.id}_data {operation} 2 {self.id}_data run " + self.load_boolean(True)[0],
+                f"execute unless score 1 {self.id}_data {operation} 2 {self.id}_data run "  + self.load_boolean(False)[0]]
+    
+    def compare_less(self):
+        return self.load_math() + \
+               self.compare_math("<")
+    
+    def compare_less_or_equals(self):
+        return self.load_math() + \
+               self.compare_math("<=")
+    
+    def compare_greater(self):
+        return self.load_math() + \
+               self.compare_math(">")
+    
+    def compare_greater_or_equals(self):
+        return self.load_math() + \
+               self.compare_math(">=")
+    
+    def logic_not(self):
+        return [f"scoreboard players set 2 {self.id}_data 0",
+                f"data modify storage {self.id}:data Operation set from storage {self.id}:data Temporary[-1]",
+                f"execute if score 2 {self.id}_data matches 0 run execute store result score 1 {self.id}_data run data modify storage {self.id}:data Operation set value " + "{\"Type\":\"bool\",\"Value\":\"True\"}",
+                f"execute if score 2 {self.id}_data matches 0 run execute if score 1 {self.id}_data matches 0 run " + self.load_boolean(False)[0],
+                f"execute if score 2 {self.id}_data matches 0 run execute if score 1 {self.id}_data matches 0 run scoreboard players set 2 {self.id}_data 1",
+                f"data modify storage {self.id}:data Operation set from storage {self.id}:data Temporary[-1]",
+                f"execute if score 2 {self.id}_data matches 0 run execute store result score 1 {self.id}_data run data modify storage {self.id}:data Operation set value " + "{\"Type\":\"bool\",\"Value\":\"False\"}",
+                f"execute if score 2 {self.id}_data matches 0 run execute if score 1 {self.id}_data matches 0 run " + self.load_boolean(True)[0],
+                f"execute if score 2 {self.id}_data matches 0 run execute if score 1 {self.id}_data matches 0 run scoreboard players set 2 {self.id}_data 1",
+                f"data remove storage {self.id}:data Temporary[-2]"]
+    
     def compile(self, function):
         bytecode = Bytecode(function)
-        commands = []
+        commands = self.argmap(signature(function), function.__name__)
         for instruction in bytecode:
             if instruction.opname == "LOAD_CONST":
                 if type(instruction.argval) == tuple:
@@ -201,11 +307,9 @@ class ObjectMC:
                 commands += self.store(instruction.argval)
             elif instruction.opname == "LOAD_FAST" or instruction.opname == "LOAD_GLOBAL":
                 if instruction.argval in self.functions["core"]:
-                    self.target_functions.append(f"core/{instruction.argval}")
-                elif instruction.argval in self.functions["internal"]:
-                    self.target_functions.append(f"internal/{instruction.argval}")
+                    commands += self.load_function(instruction.argval, "core")
                 elif instruction.argval in self.functions["defined"]:
-                    self.target_functions.append(f"defined/{instruction.argval}")
+                    commands += self.load_function(instruction.argval, "defined")
                 else:
                     commands += self.load(instruction.argval)
             elif instruction.opname == "CALL_FUNCTION":
@@ -226,7 +330,26 @@ class ObjectMC:
                 commands += self.modulo()
             elif instruction.opname == "BINARY_POWER":
                 commands += self.power()
-        return map(lambda command: f"execute if score exited {self.id}_data matches 0 run " + command, commands)
+            elif instruction.opname == "COMPARE_OP":
+                if instruction.arg == 0:
+                    commands += self.compare_less()
+                elif instruction.arg == 1:
+                    commands += self.compare_less_or_equals()
+                elif instruction.arg == 2:
+                    commands += self.compare_equals()
+                elif instruction.arg == 3:
+                    commands += self.compare_not_equals()
+                elif instruction.arg == 4:
+                    commands += self.compare_greater()
+                elif instruction.arg == 5:
+                    commands += self.compare_greater_or_equals()
+            elif instruction.opname == "UNARY_NOT":
+                commands += self.logic_not()
+            elif instruction.opname == "POP_TOP":
+                commands += self.pop_temp()
+            else:
+                print(instruction)
+        return list(map(lambda command: f"execute if score exited {self.id}_data matches 0 run " + command, commands))
     
     def export(self, functionpack):
         @ignore
@@ -242,7 +365,7 @@ class ObjectMC:
                 pack.write(dumps({
                     "pack": {
                         "pack_format": 10,
-                        "description": functionpack.description if hasattr(functionpack, "description") else "ObjectMC datapack"
+                        "description": "ObjectMC datapack" if self.description == None else self.description
                     }
                 }))
             with open(join(path, self.name, "data", "minecraft", "tags", "functions", "load.json"), "w") as load:
@@ -268,7 +391,7 @@ class ObjectMC:
                 if isfunction(func):
                     self.functions["core"].append(name)
                     with open(join(path, self.name, "data", self.id, "functions", "core", f"{name}.mcfunction"), "w") as mcfunc:
-                        mcfunc.write("\n".join(func(self)))
+                        mcfunc.write("\n".join(func(self) + [f"scoreboard players set 2 {self.id}_data 0"]))
             for name in dir(self.Internal):
                 func = getattr(self.Internal, name)
                 if isfunction(func):
@@ -276,9 +399,10 @@ class ObjectMC:
                     with open(join(path, self.name, "data", self.id, "functions", "internal", f"{name}.mcfunction"), "w") as mcfunc:
                         mcfunc.write("\n".join(func(self)))
             for name in dir(functionpack):
-                func = getattr(functionpack, name)
-                if isfunction(func):
-                    self.functions["defined"].append(name)
+                if fullmatch("[a-z0-9_]+", name):
+                    func = getattr(functionpack, name)
+                    if isfunction(func):
+                        self.functions["defined"].append(name)
             load = open(join(path, self.name, "data", self.id, "functions", "event", "load.mcfunction"), "w")
             load.write(f"scoreboard players set exited {self.id}_data 0\n" + "\n".join(self.load_objectmc()) + "\n")
             tick = open(join(path, self.name, "data", self.id, "functions", "event", "tick.mcfunction"), "w")
@@ -287,7 +411,7 @@ class ObjectMC:
                 if not hasattr(func, "mode"):
                     func.mode = "mcfunction"
                 if func.mode != "ignore":
-                    source = "\n".join(self.compile(func)) + "\n"
+                    source = "\n".join(self.compile(func) + [f"scoreboard players set 2 {self.id}_data 0"]) + "\n"
                     with open(join(path, self.name, "data", self.id, "functions", "defined", f"{name}.mcfunction"), "w") as mcfunc:
                         mcfunc.write(source)
                     caller = f"scoreboard players set exited {self.id}_data 0\nfunction {self.id}:defined/{name}"
@@ -300,10 +424,12 @@ class ObjectMC:
         return export
     
     def __call__(self, cls):
-        if self.name == None:
-            self.name = cls.__name__
         if self.id == None:
             self.id = cls.__name__.lower()
+        if self.name == None:
+            self.name = cls.__name__
+        if self.description == None and hasattr(cls, "description"):
+            self.description = cls.description
         cls.export = self.export(cls)
         return cls
 
