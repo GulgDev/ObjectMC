@@ -32,11 +32,7 @@ ObjectMCClass.export(".minecraft/saves/world/datapacks")
 
 ## Last update
 - Added bool.
-- Added dynamic functions. Now you can store a function to a variable:
-- ```python
-- callback = print
-- myfunc(1, 2, "Bob", callback)
-- ```
+- Now functions are technically objects: `myfunc(1, 2, "Bob", print)`
 
 ## Support
 ObjectMC v0.2 supports
