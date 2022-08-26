@@ -30,12 +30,22 @@ After creating class you can export it:
 ObjectMCClass.export(".minecraft/saves/world/datapacks")
 ```
 
+## Last update
+- Added bool.
+- Added dynamic functions. Now you can store a function to a variable:
+- ```python
+- callback = print
+- myfunc(1, 2, "Bob", callback)
+- ```
+
 ## Support
-ObjectMC v0.1 supports
+ObjectMC v0.2 supports
 - Python 3
 - - Python types
 - - - str
 - - - int
+- - - bool
+- - - NoneType
 - - Python built-in functions
 - - - print
 - - - len
