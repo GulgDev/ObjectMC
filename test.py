@@ -1,9 +1,7 @@
 from objectmc import *
 
-@ObjectMC()
+@ObjectMC(description="Just a test datapack")
 class ObjectMCTest:
-    description = "Just a test datapack"
-    
     def concatenation():
         name = "Bob"
         print("Hello, ", name, "!", sep="")
@@ -75,5 +73,8 @@ class ObjectMCTest:
     
     def say_hello_from(func):
         print("Hello from", func)
+    
+    def minecraft_api():
+        getblock(0, 0, 0).setid("minecraft:red_stained_glass")
 
 ObjectMCTest.export(r"C:\Users\user\AppData\Roaming\.minecraft\saves\ObjectMC test\datapacks")
