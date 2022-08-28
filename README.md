@@ -30,12 +30,16 @@ After creating class you can export it:
 ObjectMCClass.export(".minecraft/saves/world/datapacks")
 ```
 
-## Last update
+### Updates
+### v0.2
 - Added bool.
 - Now functions are technically objects: `myfunc(1, 2, "Bob", print)`
+### v0.3
+- Added getblock().
+- Fixed bugs.
 
 ## Support
-ObjectMC v0.2 supports
+ObjectMC v0.3 supports
 - Python 3
 - - Python types
 - - - str
@@ -59,4 +63,4 @@ ObjectMC v0.2 supports
 - - - Nothing yet :(
 - Minecraft 1.16+
 - - Minecraft API
-- - - Nothing yet :(
+- - - getblock()
