@@ -1,5 +1,6 @@
 # ObjectMC
-Object oriented datapacks for Minecraft
+Object oriented datapacks in Python for Minecraft.
+https://youtu.be/yBetnG_R02o
 
 ## What is it?
 It's a program that compiles Python bytecode to Minecraft commands.
